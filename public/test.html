@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部署测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #333;
+            border-radius: 10px;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #4CAF50; }
+        .error { background: #f44336; }
+        .warning { background: #ff9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Vercel 部署测试</h1>
+        <p>如果你能看到这个页面，说明 Vercel 部署正常</p>
+        
+        <div id="env-status">
+            <h3>环境变量检测:</h3>
+            <div class="status" id="openai-status">检测中...</div>
+            <div class="status" id="youtube-status">检测中...</div>
+            <div class="status" id="twitch-status">检测中...</div>
+        </div>
+        
+        <div id="deployment-info">
+            <h3>部署信息:</h3>
+            <p>部署时间: <span id="deploy-time"></span></p>
+            <p>页面 URL: <span id="page-url"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // 显示当前时间和URL
+        document.getElementById('deploy-time').textContent = new Date().toLocaleString();
+        document.getElementById('page-url').textContent = window.location.href;
+        
+        // 检测环境变量（注意：在浏览器中只能检测到以VITE_开头的变量）
+        const checkEnvVar = (varName, elementId) => {
+            const element = document.getElementById(elementId);
+            // 在生产环境中，我们无法直接访问环境变量
+            // 这里只是显示测试状态
+            element.textContent = `${varName}: 需要在主应用中检测`;
+            element.className = 'status warning';
+        };
+        
+        checkEnvVar('VITE_OPENAI_API_KEY', 'openai-status');
+        checkEnvVar('VITE_YOUTUBE_API_KEY', 'youtube-status');
+        checkEnvVar('VITE_TWITCH_CLIENT_ID', 'twitch-status');
+    </script>
+</body>
+</html>
