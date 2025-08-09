@@ -4,7 +4,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 import { realVideoProcessor } from './services/realVideoProcessor';
-import { ffmpegVideoProcessor } from './services/ffmpegVideoProcessor';
+import { workingVideoProcessor } from './services/workingVideoProcessor';
 import { liveStreamService, LiveStreamInfo } from './services/liveStreamService';
 
 interface ProcessingStep {
@@ -229,7 +229,7 @@ function App() {
       let result;
       if (videoFile) {
         // 如果有上传的视频文件，使用真实的视频处理器
-        result = await ffmpegVideoProcessor.processVideo(
+        result = await workingVideoProcessor.processVideo(
           videoFile,
           sliceMinutes,
           (progress) => {
@@ -248,7 +248,7 @@ function App() {
         }
         
         // 使用actualVideoProcessor处理直播
-        result = await ffmpegVideoProcessor.processLiveStream(
+        result = await workingVideoProcessor.processLiveStream(
           streamInfo.title,
           streamInfo.platform,
           sliceMinutes,
@@ -302,7 +302,7 @@ function App() {
         }))
       );
 
-      const zipBlob = await ffmpegVideoProcessor.createZipFile(result.slices);
+      const zipBlob = await workingVideoProcessor.createZipFile(result.slices);
       const zipUrl = URL.createObjectURL(zipBlob);
       setDownloadUrl(zipUrl);
 
