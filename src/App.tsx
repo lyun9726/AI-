@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, Upload } from 'lucide-react';
-import APIConfigTest from './components/APIConfigTest';
+
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 
@@ -319,11 +319,6 @@ function App() {
         </div>
 
         <div className="max-w-4xl mx-auto">
-          {/* API配置测试 */}
-          <APIConfigTest />
-          
-
-          
           {/* Stream URL Input Section */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 mb-8">
             <h2 className="text-2xl font-semibold text-white mb-6 flex items-center">
