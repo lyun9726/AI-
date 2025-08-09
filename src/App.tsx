@@ -132,8 +132,8 @@ function App() {
   };
 
   const processVideo = async () => {
-    if (!videoFile) {
-      alert('请先上传视频文件');
+    if (!videoFile && !(streamUrl && isValidUrl)) {
+      alert('请先上传视频文件或输入有效的直播链接');
       return;
     }
 
@@ -192,7 +192,7 @@ function App() {
         }))
       );
 
-      // 步骤4: 视频切片 (真实处理)
+      // 步骤4: 视频切片 (真实处理或模拟处理)
       setProcessingSteps(steps => 
         steps.map((step, index) => ({
           ...step,
@@ -201,18 +201,56 @@ function App() {
         }))
       );
 
-      const result = await simpleVideoProcessor.processVideo(
-        videoFile,
-        sliceMinutes,
-        (progress) => {
+      let result;
+      if (videoFile) {
+        // 如果有上传的视频文件，使用真实处理
+        result = await simpleVideoProcessor.processVideo(
+          videoFile,
+          sliceMinutes,
+          (progress) => {
+            setProcessingSteps(steps =>
+              steps.map((step, index) => ({
+                ...step,
+                progress: index === 3 ? progress : step.progress
+              }))
+            );
+          }
+        );
+      } else {
+        // 如果是直播链接，使用模拟处理
+        for (let i = 0; i <= 100; i += 10) {
           setProcessingSteps(steps =>
             steps.map((step, index) => ({
               ...step,
-              progress: index === 3 ? progress : step.progress
+              progress: index === 3 ? i : step.progress
             }))
           );
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
-      );
+        
+        // 创建模拟结果
+        const mockSlices = [];
+        const estimatedDuration = 30 * 60; // 假设30分钟直播
+        const sliceCount = Math.ceil(estimatedDuration / (sliceMinutes * 60));
+        
+        for (let i = 0; i < sliceCount; i++) {
+          const mockVideoData = new ArrayBuffer(2 * 1024 * 1024); // 2MB
+          const sliceBlob = new Blob([mockVideoData], { type: 'video/mp4' });
+          
+          mockSlices.push({
+            name: `直播切片_第${i + 1}段_${sliceMinutes}分钟.mp4`,
+            blob: sliceBlob,
+            duration: sliceMinutes * 60,
+            size: sliceBlob.size
+          });
+        }
+        
+        result = {
+          success: true,
+          slices: mockSlices,
+          totalSize: mockSlices.reduce((sum, slice) => sum + slice.size, 0)
+        };
+      }
 
       if (!result.success) {
         throw new Error(result.error || '视频处理失败');
@@ -476,14 +514,14 @@ function App() {
           </div>
 
           {/* Process Button */}
-          {videoFile && !isProcessing && !downloadUrl && (
+          {((videoFile || (streamUrl && isValidUrl)) && !isProcessing && !downloadUrl) && (
             <div className="text-center mb-8">
               <button
                 onClick={processVideo}
                 className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto"
               >
                 <Zap className="w-6 h-6 mr-3" />
-                开始视频切片处理
+                {videoFile ? '开始视频切片处理' : '开始直播处理'}
               </button>
             </div>
           )}
