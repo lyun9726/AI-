@@ -316,6 +316,7 @@ function App() {
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             智能语音识别 • 自动字幕生成 • 精准视频切片 • 一键批量输出
           </p>
+          {/* Updated: Removed API config display for cleaner UI */}
         </div>
 
         <div className="max-w-4xl mx-auto">
