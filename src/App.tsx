@@ -4,7 +4,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 import { realVideoProcessor } from './services/realVideoProcessor';
-import { playableVideoProcessor } from './services/playableVideoProcessor';
+import { ffmpegVideoProcessor } from './services/ffmpegVideoProcessor';
 import { liveStreamService, LiveStreamInfo } from './services/liveStreamService';
 
 interface ProcessingStep {
@@ -23,7 +23,7 @@ function App() {
     { id: 'fetch', name: '直播抓取', status: 'pending', progress: 0 },
     { id: 'download', name: '视频下载', status: 'pending', progress: 0 },
     { id: 'transcribe', name: '语音识别', status: 'pending', progress: 0 },
-    { id: 'slice', name: '视频切片', status: 'pending', progress: 0 },
+    { id: 'slice', name: 'FFmpeg.wasm 专业切片', status: 'pending', progress: 0 },
     { id: 'subtitle', name: '字幕叠加', status: 'pending', progress: 0 },
     { id: 'package', name: '打包输出', status: 'pending', progress: 0 },
   ]);
@@ -33,6 +33,7 @@ function App() {
 
   const [streamInfo, setStreamInfo] = useState<LiveStreamInfo | null>(null);
   const [isAnalyzingStream, setIsAnalyzingStream] = useState(false);
+  const [isLoadingFFmpeg, setIsLoadingFFmpeg] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,9 +161,10 @@ function App() {
       return;
     }
 
-    setIsProcessing(true);
+        setIsProcessing(true);
+    setIsLoadingFFmpeg(true);
     setProcessingSteps(steps => steps.map(step => ({ ...step, status: 'pending', progress: 0 })));
-
+    
     try {
       // 步骤1: 直播抓取 (模拟)
       setProcessingSteps(steps => 
@@ -227,7 +229,7 @@ function App() {
       let result;
       if (videoFile) {
         // 如果有上传的视频文件，使用真实的视频处理器
-        result = await playableVideoProcessor.processVideo(
+        result = await ffmpegVideoProcessor.processVideo(
           videoFile,
           sliceMinutes,
           (progress) => {
@@ -246,7 +248,7 @@ function App() {
         }
         
         // 使用actualVideoProcessor处理直播
-        result = await playableVideoProcessor.processLiveStream(
+        result = await ffmpegVideoProcessor.processLiveStream(
           streamInfo.title,
           streamInfo.platform,
           sliceMinutes,
@@ -300,7 +302,7 @@ function App() {
         }))
       );
 
-      const zipBlob = await playableVideoProcessor.createZipFile(result.slices);
+      const zipBlob = await ffmpegVideoProcessor.createZipFile(result.slices);
       const zipUrl = URL.createObjectURL(zipBlob);
       setDownloadUrl(zipUrl);
 
@@ -317,6 +319,7 @@ function App() {
       alert(`处理失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setIsProcessing(false);
+      setIsLoadingFFmpeg(false);
     }
   };
 
@@ -560,10 +563,20 @@ function App() {
             <div className="text-center mb-8">
               <button
                 onClick={processVideo}
-                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto"
+                disabled={isProcessing}
+                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center mx-auto disabled:transform-none disabled:shadow-lg"
               >
-                <Zap className="w-6 h-6 mr-3" />
-                {videoFile ? '开始视频切片处理' : '开始直播处理'}
+                {isProcessing ? (
+                  <>
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
+                    {isLoadingFFmpeg ? '🚀 加载FFmpeg.wasm...' : '⚡ 处理中...'}
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-6 h-6 mr-3" />
+                    {videoFile ? '🎬 开始专业视频切片' : '📺 开始直播处理'}
+                  </>
+                )}
               </button>
             </div>
           )}
