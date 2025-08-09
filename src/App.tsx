@@ -4,6 +4,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 import { realVideoProcessor } from './services/realVideoProcessor';
+import { liveStreamService, LiveStreamInfo } from './services/liveStreamService';
 
 interface ProcessingStep {
   id: string;
@@ -29,6 +30,8 @@ function App() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [useRealProcessor, setUseRealProcessor] = useState(true); // 默认使用真实处理
+  const [streamInfo, setStreamInfo] = useState<LiveStreamInfo | null>(null);
+  const [isAnalyzingStream, setIsAnalyzingStream] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,10 +84,27 @@ function App() {
     ].some(pattern => pattern.test(url));
   }, []);
 
-  const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUrlChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
     setStreamUrl(url);
     setIsValidUrl(validateUrl(url));
+    
+    // 如果URL有效，自动分析直播信息
+    if (validateUrl(url)) {
+      setIsAnalyzingStream(true);
+      try {
+        const info = await liveStreamService.parseStreamUrl(url);
+        setStreamInfo(info);
+        console.log('直播信息:', info);
+      } catch (error) {
+        console.error('分析直播失败:', error);
+        setStreamInfo(null);
+      } finally {
+        setIsAnalyzingStream(false);
+      }
+    } else {
+      setStreamInfo(null);
+    }
   }, [validateUrl]);
 
   const getSupportedPlatforms = () => {
@@ -220,38 +240,54 @@ function App() {
           }
         );
       } else {
-        // 如果是直播链接，使用模拟处理
-        for (let i = 0; i <= 100; i += 10) {
+        // 如果是直播链接，使用真实的直播录制
+        if (!streamInfo) {
+          throw new Error('直播信息获取失败，请重新输入链接');
+        }
+        
+        // 步骤4: 直播录制
+        console.log('开始录制直播:', streamInfo.title);
+        
+        // 计算录制时长（基于切片设置）
+        const recordDuration = sliceMinutes * 60; // 每个切片的时长
+        const totalRecordTime = recordDuration * 10; // 假设录制10个切片的时长
+        
+        // 模拟录制进度
+        for (let i = 0; i <= 100; i += 5) {
           setProcessingSteps(steps =>
             steps.map((step, index) => ({
               ...step,
               progress: index === 3 ? i : step.progress
             }))
           );
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        // 创建模拟结果
-        const mockSlices = [];
-        const estimatedDuration = 30 * 60; // 假设30分钟直播
-        const sliceCount = Math.ceil(estimatedDuration / (sliceMinutes * 60));
+        // 下载直播流
+        const streamBlob = await liveStreamService.downloadStream(streamInfo, totalRecordTime);
+        
+        // 将录制的直播切片
+        const slices = [];
+        const sliceCount = Math.ceil(totalRecordTime / recordDuration);
+        const chunkSize = Math.floor(streamBlob.size / sliceCount);
         
         for (let i = 0; i < sliceCount; i++) {
-          const mockVideoData = new ArrayBuffer(2 * 1024 * 1024); // 2MB
-          const sliceBlob = new Blob([mockVideoData], { type: 'video/mp4' });
+          const start = i * chunkSize;
+          const end = Math.min(start + chunkSize, streamBlob.size);
+          const sliceBlob = streamBlob.slice(start, end, 'video/mp4');
           
-          mockSlices.push({
-            name: `直播切片_第${i + 1}段_${sliceMinutes}分钟.mp4`,
+          slices.push({
+            name: `${streamInfo.platform}直播_第${i + 1}段_${sliceMinutes}分钟.mp4`,
             blob: sliceBlob,
-            duration: sliceMinutes * 60,
+            duration: recordDuration,
             size: sliceBlob.size
           });
         }
         
         result = {
           success: true,
-          slices: mockSlices,
-          totalSize: mockSlices.reduce((sum, slice) => sum + slice.size, 0)
+          slices,
+          totalSize: slices.reduce((sum, slice) => sum + slice.size, 0)
         };
       }
 
@@ -425,8 +461,39 @@ function App() {
                   <div className="flex items-center text-green-400 mb-2">
                     <Radio className="w-5 h-5 mr-2" />
                     <span className="font-semibold">链接验证通过</span>
+                    {isAnalyzingStream && (
+                      <span className="ml-2 text-sm text-yellow-400">分析中...</span>
+                    )}
                   </div>
-                  <p className="text-green-300 text-sm">检测到有效的直播链接，可以开始处理</p>
+                  
+                  {streamInfo ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center text-green-300 text-sm">
+                        <span className="font-medium">平台：</span>
+                        <span className="ml-1">{streamInfo.platform}</span>
+                        <span className={`ml-3 px-2 py-1 rounded text-xs ${
+                          streamInfo.status === 'live' ? 'bg-red-500 text-white' : 
+                          streamInfo.status === 'offline' ? 'bg-gray-500 text-white' : 
+                          'bg-yellow-500 text-black'
+                        }`}>
+                          {streamInfo.status === 'live' ? '直播中' : 
+                           streamInfo.status === 'offline' ? '已下播' : '状态未知'}
+                        </span>
+                      </div>
+                      <div className="text-green-300 text-sm">
+                        <span className="font-medium">标题：</span>
+                        <span className="ml-1">{streamInfo.title}</span>
+                      </div>
+                      {streamInfo.quality && streamInfo.quality.length > 0 && (
+                        <div className="text-green-300 text-sm">
+                          <span className="font-medium">画质：</span>
+                          <span className="ml-1">{streamInfo.quality.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-green-300 text-sm">检测到有效的直播链接，可以开始处理</p>
+                  )}
                 </div>
               )}
               
