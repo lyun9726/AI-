@@ -4,7 +4,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 import { realVideoProcessor } from './services/realVideoProcessor';
-import { testVideoProcessor } from './services/testVideoProcessor';
+import { simpleWorkingProcessor } from './services/simpleWorkingProcessor';
 import { liveStreamService, LiveStreamInfo } from './services/liveStreamService';
 
 interface ProcessingStep {
@@ -23,7 +23,7 @@ function App() {
     { id: 'fetch', name: '直播抓取', status: 'pending', progress: 0 },
     { id: 'download', name: '视频下载', status: 'pending', progress: 0 },
     { id: 'transcribe', name: '语音识别', status: 'pending', progress: 0 },
-    { id: 'slice', name: '测试视频切片', status: 'pending', progress: 0 },
+    { id: 'slice', name: 'Canvas可视化切片', status: 'pending', progress: 0 },
     { id: 'subtitle', name: '字幕叠加', status: 'pending', progress: 0 },
     { id: 'package', name: '打包输出', status: 'pending', progress: 0 },
   ]);
@@ -229,7 +229,7 @@ function App() {
       let result;
       if (videoFile) {
         // 如果有上传的视频文件，使用真实的视频处理器
-        result = await testVideoProcessor.processVideo(
+        result = await simpleWorkingProcessor.processVideo(
           videoFile,
           sliceMinutes,
           (progress) => {
@@ -248,7 +248,7 @@ function App() {
         }
         
         // 使用actualVideoProcessor处理直播
-        result = await testVideoProcessor.processLiveStream(
+        result = await simpleWorkingProcessor.processLiveStream(
           streamInfo.title,
           streamInfo.platform,
           sliceMinutes,
@@ -302,7 +302,7 @@ function App() {
         }))
       );
 
-      const zipBlob = await testVideoProcessor.createZipFile(result.slices);
+      const zipBlob = await simpleWorkingProcessor.createZipFile(result.slices);
       const zipUrl = URL.createObjectURL(zipBlob);
       setDownloadUrl(zipUrl);
 
@@ -574,7 +574,7 @@ function App() {
                 ) : (
                   <>
                     <Zap className="w-6 h-6 mr-3" />
-                    {videoFile ? '🎬 开始测试视频切片' : '📺 开始测试直播处理'}
+                    {videoFile ? '🎨 开始可视化切片' : '📺 开始可视化直播'}
                   </>
                 )}
               </button>
