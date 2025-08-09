@@ -4,6 +4,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
 import { realVideoProcessor } from './services/realVideoProcessor';
+import { actualVideoProcessor } from './services/actualVideoProcessor';
 import { liveStreamService, LiveStreamInfo } from './services/liveStreamService';
 
 interface ProcessingStep {
@@ -29,7 +30,7 @@ function App() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
-  const [useRealProcessor, setUseRealProcessor] = useState(true); // 默认使用真实处理
+
   const [streamInfo, setStreamInfo] = useState<LiveStreamInfo | null>(null);
   const [isAnalyzingStream, setIsAnalyzingStream] = useState(false);
 
@@ -225,9 +226,8 @@ function App() {
 
       let result;
       if (videoFile) {
-        // 如果有上传的视频文件，根据用户选择使用处理器
-        const processor = useRealProcessor ? realVideoProcessor : simpleVideoProcessor;
-        result = await processor.processVideo(
+        // 如果有上传的视频文件，使用真实的视频处理器
+        result = await actualVideoProcessor.processVideo(
           videoFile,
           sliceMinutes,
           (progress) => {
@@ -240,55 +240,25 @@ function App() {
           }
         );
       } else {
-        // 如果是直播链接，使用真实的直播录制
+        // 如果是直播链接，使用真实的直播处理器
         if (!streamInfo) {
           throw new Error('直播信息获取失败，请重新输入链接');
         }
         
-        // 步骤4: 直播录制
-        console.log('开始录制直播:', streamInfo.title);
-        
-        // 计算录制时长（基于切片设置）
-        const recordDuration = sliceMinutes * 60; // 每个切片的时长
-        const totalRecordTime = recordDuration * 10; // 假设录制10个切片的时长
-        
-        // 模拟录制进度
-        for (let i = 0; i <= 100; i += 5) {
-          setProcessingSteps(steps =>
-            steps.map((step, index) => ({
-              ...step,
-              progress: index === 3 ? i : step.progress
-            }))
-          );
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-        // 下载直播流
-        const streamBlob = await liveStreamService.downloadStream(streamInfo, totalRecordTime);
-        
-        // 将录制的直播切片
-        const slices = [];
-        const sliceCount = Math.ceil(totalRecordTime / recordDuration);
-        const chunkSize = Math.floor(streamBlob.size / sliceCount);
-        
-        for (let i = 0; i < sliceCount; i++) {
-          const start = i * chunkSize;
-          const end = Math.min(start + chunkSize, streamBlob.size);
-          const sliceBlob = streamBlob.slice(start, end, 'video/mp4');
-          
-          slices.push({
-            name: `${streamInfo.platform}直播_第${i + 1}段_${sliceMinutes}分钟.mp4`,
-            blob: sliceBlob,
-            duration: recordDuration,
-            size: sliceBlob.size
-          });
-        }
-        
-        result = {
-          success: true,
-          slices,
-          totalSize: slices.reduce((sum, slice) => sum + slice.size, 0)
-        };
+        // 使用actualVideoProcessor处理直播
+        result = await actualVideoProcessor.processLiveStream(
+          streamInfo.title,
+          streamInfo.platform,
+          sliceMinutes,
+          (progress) => {
+            setProcessingSteps(steps =>
+              steps.map((step, index) => ({
+                ...step,
+                progress: index === 3 ? progress : step.progress
+              }))
+            );
+          }
+        );
       }
 
       if (!result.success) {
@@ -330,8 +300,7 @@ function App() {
         }))
       );
 
-      const processor = (videoFile && useRealProcessor) ? realVideoProcessor : simpleVideoProcessor;
-      const zipBlob = await processor.createZipFile(result.slices);
+      const zipBlob = await actualVideoProcessor.createZipFile(result.slices);
       const zipUrl = URL.createObjectURL(zipBlob);
       setDownloadUrl(zipUrl);
 
@@ -565,33 +534,7 @@ function App() {
                 </div>
               </div>
               
-              {/* 处理模式选择 */}
-              {videoFile && (
-                <div className="mb-6">
-                  <div className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-white font-semibold mb-1">处理模式</div>
-                        <div className="text-gray-400 text-sm">
-                          {useRealProcessor ? '真实处理：基于视频时长切片（推荐）' : '模拟处理：生成测试文件'}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setUseRealProcessor(!useRealProcessor)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          useRealProcessor ? 'bg-amber-600' : 'bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            useRealProcessor ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="bg-gray-700/50 rounded-lg p-4 text-center">
