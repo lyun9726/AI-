@@ -3,6 +3,7 @@ import { Link, Play, Download, Scissors, Radio, Clock, Zap, CheckCircle, Globe, 
 
 
 import { simpleVideoProcessor, ProcessingResult, VideoSlice } from './services/simpleVideoProcessor';
+import { realVideoProcessor } from './services/realVideoProcessor';
 
 interface ProcessingStep {
   id: string;
@@ -27,6 +28,7 @@ function App() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const [useRealProcessor, setUseRealProcessor] = useState(true); // 默认使用真实处理
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -203,8 +205,9 @@ function App() {
 
       let result;
       if (videoFile) {
-        // 如果有上传的视频文件，使用真实处理
-        result = await simpleVideoProcessor.processVideo(
+        // 如果有上传的视频文件，根据用户选择使用处理器
+        const processor = useRealProcessor ? realVideoProcessor : simpleVideoProcessor;
+        result = await processor.processVideo(
           videoFile,
           sliceMinutes,
           (progress) => {
@@ -291,7 +294,8 @@ function App() {
         }))
       );
 
-      const zipBlob = await simpleVideoProcessor.createZipFile(result.slices);
+      const processor = (videoFile && useRealProcessor) ? realVideoProcessor : simpleVideoProcessor;
+      const zipBlob = await processor.createZipFile(result.slices);
       const zipUrl = URL.createObjectURL(zipBlob);
       setDownloadUrl(zipUrl);
 
@@ -494,6 +498,34 @@ function App() {
                 </div>
               </div>
               
+              {/* 处理模式选择 */}
+              {videoFile && (
+                <div className="mb-6">
+                  <div className="bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-white font-semibold mb-1">处理模式</div>
+                        <div className="text-gray-400 text-sm">
+                          {useRealProcessor ? '真实处理：基于视频时长切片（推荐）' : '模拟处理：生成测试文件'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setUseRealProcessor(!useRealProcessor)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          useRealProcessor ? 'bg-amber-600' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            useRealProcessor ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="bg-gray-700/50 rounded-lg p-4 text-center">
                   <div className="text-amber-400 font-semibold">预估切片数</div>
