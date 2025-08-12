@@ -1,0 +1,59 @@
+### 直播录制 API 测试脚本
+### 使用方法: 在支持 .http 文件的编辑器中运行（如 VS Code + REST Client 插件）
+
+@baseUrl = http://localhost:8790
+
+### 1. 测试 Ping
+GET {{baseUrl}}/api/ping
+
+### 2. 开始录制 - 测试流
+POST {{baseUrl}}/api/record/start
+Content-Type: application/json
+
+{
+  "name": "测试源1",
+  "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+  "durationSec": 60,
+  "outDir": "recordings/douyin"
+}
+
+### 3. 开始录制 - 抖音直播（示例）
+POST {{baseUrl}}/api/record/start
+Content-Type: application/json
+
+{
+  "name": "抖音直播间1",
+  "url": "https://v.douyin.com/iRN7Pfo/",
+  "durationSec": 3600,
+  "outDir": "recordings/douyin"
+}
+
+### 4. 开始录制 - 使用绝对路径
+POST {{baseUrl}}/api/record/start
+Content-Type: application/json
+
+{
+  "name": "测试绝对路径",
+  "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+  "durationSec": 30,
+  "outDir": "E:\\Saves\\Douyin"
+}
+
+### 5. 查询录制状态
+GET {{baseUrl}}/api/record/status
+
+### 6. 停止录制
+POST {{baseUrl}}/api/record/stop
+Content-Type: application/json
+
+{
+  "name": "测试源1"
+}
+
+### 7. 停止所有录制（需要先查询状态获取名称）
+POST {{baseUrl}}/api/record/stop
+Content-Type: application/json
+
+{
+  "name": "抖音直播间1"
+}
